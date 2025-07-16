@@ -21,33 +21,39 @@ class SimCLRDataset(Dataset):
 class SimCLRDataModule(LightningDataModule):
     def __init__(
             self,
-            data_path,
-            train_batch_size,
-            val_batch_size,
-            image_size,
-            num_workers,
-            pin_memory
+            config
     ):
         super().__init__()
 
-        self.data_dir = data_path
-        self.train_batch_size = train_batch_size
-        self.val_batch_size = val_batch_size
-        self.image_size = image_size
-        self.num_workers = num_workers
-        self.pin_memory = pin_memory
+        self.data_dir = config["dataset"]["path"]
+        self.train_batch_size = config["training"]["train_batch_size"]
+        self.val_batch_size = config["training"]["val_batch_size"]
+        self.num_workers = config["training"]["num_workers"]
+        self.pin_memory = config["training"]["pin_memory"]
+
+        # CONFIGS
+        self.crop_size = config["augmentation"]["crop_size"] # cifar image size
+        self.random_resized_crop_scale = config["augmentation"]["random_resized_crop"]["scale"]
+        self.color_jitter_p = config["augmentation"]["color_jitter"]["p"]
+        self.color_jitter_strength = config["augmentation"]["color_jitter"]["strength"]
+        self.grayscale_prob = config["augmentation"]["grayscale_prob"]
+        self.gaussian_blur_prob = config["augmentation"]["gaussian_blur_prob"]
+        self.gaussian_blur_kernel_size = config["augmentation"]["gaussian_blur_kernel_size"]
+        self.normalize_mean = config["augmentation"]["normalize"]["mean"]
+        self.normalize_std = config["augmentation"]["normalize"]["std"]
     
     def setup(self, stage):
-        color_jitter = transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)
+        
+        color_jitter = transforms.ColorJitter(*self.color_jitter_strength)
         simclr_transform = transforms.Compose([
-            transforms.RandomResizedCrop(size=self.image_size, scale=(0.2, 1.0)),
+            transforms.RandomResizedCrop(size=self.crop_size, scale=self.random_resized_crop_scale),
             transforms.RandomHorizontalFlip(),
-            transforms.RandomApply([color_jitter], p=0.8),
-            transforms.RandomGrayscale(p=0.2),
+            transforms.RandomApply([color_jitter], p=self.color_jitter_p),
+            transforms.RandomGrayscale(p=self.grayscale_prob),
             transforms.GaussianBlur(kernel_size=3),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                std=[0.2023, 0.1994, 0.2010])
+            transforms.Normalize(mean=self.normalize_mean,
+                                std=self.normalize_std)
         ])
 
 
